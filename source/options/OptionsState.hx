@@ -1,5 +1,6 @@
 package options;
 
+import flixel.addons.transition.FlxTransitionableState;
 import states.ModsMenuState;
 import online.states.RoomState;
 import states.MainMenuState;
@@ -62,6 +63,7 @@ class OptionsState extends MusicBeatState
 	public static var onOnlineRoom:Bool = false;
 	public static var hadMouseVisible:Bool = false;
 	public static var loadedMod:String = '';
+	public static var performanceStateRefreshPending:Bool = false;
 
 	function openSelectedSubstate(label:String) {
 		if (optionsCategory == 'visuals') {
@@ -100,6 +102,7 @@ class OptionsState extends MusicBeatState
 	override function create() {
 		hadMouseVisible = FlxG.mouse.visible;
 		FlxG.mouse.visible = true;
+		Paths.flushPendingCacheRefresh();
 
 		OptionsState.loadedMod = Mods.currentModDirectory;
 		
@@ -178,6 +181,15 @@ class OptionsState extends MusicBeatState
 	var forceUpdateNext:Bool = true;
 	override function update(elapsed:Float) {
 		super.update(elapsed);
+
+		if (performanceStateRefreshPending && subState == null)
+		{
+			performanceStateRefreshPending = false;
+			FlxTransitionableState.skipNextTransIn = true;
+			FlxTransitionableState.skipNextTransOut = true;
+			FlxG.switchState(() -> new OptionsState());
+			return;
+		}
 
 		if (controls.UI_UP_P) {
 			changeSelection(-1);

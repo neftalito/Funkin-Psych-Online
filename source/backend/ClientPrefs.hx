@@ -128,8 +128,6 @@ class SaveVariables {
 class ClientPrefs {
 	public static var data:SaveVariables = null;
 	public static var defaultData:SaveVariables = null;
-	public static var appliedCacheOnGPU(default, null):Bool = #if !switch false #else true #end;
-	static var appliedCacheOnGPUInitialized:Bool = false;
 
 	//Every key has two binds, add your key bind down here and then add your control on options/ControlsSubState.hx and Controls.hx
 	public static var keyBinds:Map<String, Array<FlxKey>> = [
@@ -334,11 +332,6 @@ class ClientPrefs {
 				Reflect.setField(data, key, Reflect.field(FlxG.save.data, key));
 			}
 		}
-
-		if (!appliedCacheOnGPUInitialized) {
-			appliedCacheOnGPU = data.cacheOnGPU;
-			appliedCacheOnGPUInitialized = true;
-		}
 		
 		data.arrowRGBMap ??= new Map();
 		for (key => value in defaultData.arrowRGBMap) {
@@ -427,11 +420,6 @@ class ClientPrefs {
 		}
 
 		//away3d.debug.Debug.active = ClientPrefs.isDebug();
-	}
-
-	public static inline function cacheOnGPUPendingRestart():Bool
-	{
-		return data != null && data.cacheOnGPU != appliedCacheOnGPU;
 	}
 
 	public static function getGameplaySetting(name:String, defaultValue:Dynamic = null, ?customDefaultValue:Bool = false):Dynamic {

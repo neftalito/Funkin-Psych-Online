@@ -56,6 +56,27 @@ class Paths
 		'assets/images/bf1.png',
 		'assets/images/bf2.png',
 	];
+	public static var pendingCacheRefresh:Bool = false;
+
+	public static function queueCacheRefresh()
+	{
+		pendingCacheRefresh = true;
+	}
+
+	public static function cancelPendingCacheRefresh()
+	{
+		pendingCacheRefresh = false;
+	}
+
+	public static function flushPendingCacheRefresh()
+	{
+		if (!pendingCacheRefresh)
+			return;
+
+		pendingCacheRefresh = false;
+		clearStoredMemory();
+		clearUnusedMemory();
+	}
 	/// haya I love you for the base cache dump I took to the max
 	public static function clearUnusedMemory() {
 		// clear non local assets in the tracked assets list
@@ -280,7 +301,7 @@ class Paths
 
 	static inline function shouldCacheOnGPU(allowGPU:Bool):Bool
 	{
-		return allowGPU && ClientPrefs.appliedCacheOnGPU && FlxG.stage != null && FlxG.stage.context3D != null;
+		return allowGPU && ClientPrefs.data != null && ClientPrefs.data.cacheOnGPU && FlxG.stage != null && FlxG.stage.context3D != null;
 	}
 
 	static inline function buildGraphicCacheKey(file:String, useGPU:Bool):String
