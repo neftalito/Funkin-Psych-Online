@@ -71,7 +71,7 @@ class CharacterEditorState extends MusicBeatState {
 
 	override function create() {
 		// FlxG.sound.playMusic(Paths.music('breakfast'), 0.5);
-		if (ClientPrefs.data.cacheOnGPU)
+		if (ClientPrefs.appliedCacheOnGPU)
 			Paths.clearStoredMemory();
 
 		camEditor = new FlxCamera();
@@ -116,7 +116,7 @@ class CharacterEditorState extends MusicBeatState {
 		add(healthBar);
 		healthBar.cameras = [camHUD];
 
-		if (ClientPrefs.data.cacheOnGPU)
+		if (ClientPrefs.appliedCacheOnGPU)
 			Paths.clearUnusedMemory();
 
 		leHealthIcon = new HealthIcon(char.healthIcon, false, false);
