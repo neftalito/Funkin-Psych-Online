@@ -7,10 +7,12 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 	var antialiasingOption:Int;
 	var boyfriend:Character = null;
 	var gpuCachingChanged:Bool = false;
+	var initialGPUCaching:Bool = false;
 	public function new()
 	{
 		title = 'Performance';
 		rpcTitle = 'Performance Settings Menu'; //for Discord Rich Presence
+		initialGPUCaching = ClientPrefs.data.cacheOnGPU;
 
 		boyfriend = new Character(840, 170, 'bf', true);
 		boyfriend.setGraphicSize(Std.int(boyfriend.width * 0.75));
@@ -138,12 +140,10 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 
 	override public function close()
 	{
-		if (gpuCachingChanged)
-		{
-			gpuCachingChanged = false;
-			FlxG.resetState();
-			return;
-		}
+		if (gpuCachingChanged && ClientPrefs.data.cacheOnGPU != initialGPUCaching)
+			OptionsState.performanceStateRefreshPending = true;
+		else if (gpuCachingChanged)
+			Paths.cancelPendingCacheRefresh();
 		super.close();
 	}
 

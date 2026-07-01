@@ -62,6 +62,7 @@ class OptionsState extends MusicBeatState
 	public static var onOnlineRoom:Bool = false;
 	public static var hadMouseVisible:Bool = false;
 	public static var loadedMod:String = '';
+	public static var performanceStateRefreshPending:Bool = false;
 
 	function openSelectedSubstate(label:String) {
 		if (optionsCategory == 'visuals') {
@@ -174,6 +175,11 @@ class OptionsState extends MusicBeatState
 		super.closeSubState();
 		FlxG.mouse.visible = true;
 		ClientPrefs.saveSettings();
+		if (performanceStateRefreshPending)
+		{
+			performanceStateRefreshPending = false;
+			FlxG.resetState();
+		}
 	}
 
 	var forceUpdateNext:Bool = true;

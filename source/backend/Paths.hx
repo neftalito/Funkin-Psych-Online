@@ -63,6 +63,11 @@ class Paths
 		pendingCacheRefresh = true;
 	}
 
+	public static function cancelPendingCacheRefresh()
+	{
+		pendingCacheRefresh = false;
+	}
+
 	public static function flushPendingCacheRefresh()
 	{
 		if (!pendingCacheRefresh)
