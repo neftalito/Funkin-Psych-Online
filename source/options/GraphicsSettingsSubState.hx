@@ -6,6 +6,7 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 {
 	var antialiasingOption:Int;
 	var boyfriend:Character = null;
+	var gpuCachingChanged:Bool = false;
 	public function new()
 	{
 		title = 'Performance';
@@ -131,8 +132,19 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 
 	function onChangeGPUCaching()
 	{
-		Paths.clearStoredMemory();
-		Paths.clearUnusedMemory();
+		gpuCachingChanged = true;
+		Paths.queueCacheRefresh();
+	}
+
+	override public function close()
+	{
+		if (gpuCachingChanged)
+		{
+			gpuCachingChanged = false;
+			FlxG.resetState();
+			return;
+		}
+		super.close();
 	}
 
 	override function changeSelection(change:Int = 0)

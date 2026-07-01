@@ -100,6 +100,7 @@ class OptionsState extends MusicBeatState
 	override function create() {
 		hadMouseVisible = FlxG.mouse.visible;
 		FlxG.mouse.visible = true;
+		Paths.flushPendingCacheRefresh();
 
 		OptionsState.loadedMod = Mods.currentModDirectory;
 		
