@@ -42,6 +42,7 @@ class GraphicsSettingsSubState extends BaseOptionsMenu {
 			"If checked, textures may be cached on the GPU to reduce RAM usage.", // Description
 			'cacheOnGPU',
 			'bool');
+		option.onChange = onChangeGPUCaching;
 		addOption(option);
 
 		#if !html5 // Apparently other framerates isn't correctly supported on Browser? Probably it has some V-Sync shit enabled by default, idk
@@ -109,6 +110,19 @@ class GraphicsSettingsSubState extends BaseOptionsMenu {
 			FlxG.drawFramerate = ClientPrefs.data.framerate;
 			FlxG.updateFramerate = ClientPrefs.data.framerate;
 		}
+	}
+
+	function onChangeGPUCaching() {
+		gpuCachingChanged = true;
+		Paths.queueCacheRefresh();
+	}
+
+	override public function close() {
+		if (gpuCachingChanged && ClientPrefs.data.cacheOnGPU != initialGPUCaching)
+			OptionsState.performanceStateRefreshPending = true;
+		else if (gpuCachingChanged)
+			Paths.cancelPendingCacheRefresh();
+		super.close();
 	}
 
 	override function changeSelection(change:Int = 0) {
