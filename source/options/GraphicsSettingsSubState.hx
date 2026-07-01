@@ -1,17 +1,15 @@
 package options;
 
 import objects.Character;
+import online.gui.Alert;
 
 class GraphicsSettingsSubState extends BaseOptionsMenu {
 	var antialiasingOption:Int;
 	var boyfriend:Character = null;
-	var gpuCachingChanged:Bool = false;
-	var initialGPUCaching:Bool = false;
 
 	public function new() {
 		title = 'Performance';
 		rpcTitle = 'Performance Settings Menu'; // for Discord Rich Presence
-		initialGPUCaching = ClientPrefs.data.cacheOnGPU;
 
 		boyfriend = new Character(840, 170, 'bf', true);
 		boyfriend.setGraphicSize(Std.int(boyfriend.width * 0.75));
@@ -39,7 +37,7 @@ class GraphicsSettingsSubState extends BaseOptionsMenu {
 		addOption(option);
 
 		var option:Option = new Option('GPU Caching', // Name
-			"If checked, textures may be cached on the GPU to reduce RAM usage.", // Description
+			"If checked, textures may be cached on the GPU to reduce RAM usage.\nOnly affects assets loaded from now on.", // Description
 			'cacheOnGPU',
 			'bool');
 		option.onChange = onChangeGPUCaching;
@@ -113,16 +111,7 @@ class GraphicsSettingsSubState extends BaseOptionsMenu {
 	}
 
 	function onChangeGPUCaching() {
-		gpuCachingChanged = true;
-		Paths.queueCacheRefresh();
-	}
-
-	override public function close() {
-		if (gpuCachingChanged && ClientPrefs.data.cacheOnGPU != initialGPUCaching)
-			OptionsState.performanceStateRefreshPending = true;
-		else if (gpuCachingChanged)
-			Paths.cancelPendingCacheRefresh();
-		super.close();
+		Alert.alert('GPU Caching', 'New assets will use the selected mode. Already loaded assets will keep their current one.');
 	}
 
 	override function changeSelection(change:Int = 0) {
