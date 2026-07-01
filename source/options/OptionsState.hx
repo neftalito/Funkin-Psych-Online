@@ -175,15 +175,17 @@ class OptionsState extends MusicBeatState
 		super.closeSubState();
 		FlxG.mouse.visible = true;
 		ClientPrefs.saveSettings();
-		if (performanceStateRefreshPending)
-		{
-			performanceStateRefreshPending = false;
-			FlxG.resetState();
-		}
 	}
 
 	var forceUpdateNext:Bool = true;
 	override function update(elapsed:Float) {
+		if (performanceStateRefreshPending)
+		{
+			performanceStateRefreshPending = false;
+			FlxG.switchState(() -> new OptionsState());
+			return;
+		}
+
 		super.update(elapsed);
 
 		if (controls.UI_UP_P) {
