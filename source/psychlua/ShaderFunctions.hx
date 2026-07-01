@@ -250,11 +250,11 @@ class ShaderFunctions
 			}
 
 			// trace('bitmapdatapath: $bitmapdataPath');
-			var value = Paths.image(bitmapdataPath);
-			if(value != null && value.bitmap != null)
+			var value = Paths.imageBitmap(bitmapdataPath);
+			if(value != null)
 			{
-				// trace('Found bitmapdata. Width: ${value.bitmap.width} Height: ${value.bitmap.height}');
-				shader.setSampler2D(prop, value.bitmap);
+				// trace('Found bitmapdata. Width: ${value.width} Height: ${value.height}');
+				shader.setSampler2D(prop, value);
 				return true;
 			}
 			return false;

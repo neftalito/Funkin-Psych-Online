@@ -12,6 +12,7 @@ import flixel.math.FlxPoint;
 import flixel.math.FlxRect;
 
 import openfl.display.BitmapData;
+import openfl.display3D.Context3DTextureFormat;
 import openfl.display3D.textures.RectangleTexture;
 import openfl.utils.AssetType;
 import openfl.utils.Assets as OpenFlAssets;
@@ -40,6 +41,7 @@ class Paths
 	inline public static var SOUND_EXT = #if web "mp3" #else "ogg" #end;
 	inline public static var VIDEO_EXT = "mp4";
 	inline public static var PATH_SLASH = #if windows '\\' #else '/' #end;
+	inline static var GPU_CACHE_SUFFIX = '#gpu';
 
 	public static function excludeAsset(key:String) {
 		if (!dumpExclusions.contains(key))
@@ -59,13 +61,13 @@ class Paths
 		// clear non local assets in the tracked assets list
 		for (key in currentTrackedAssets.keys()) {
 			// if it is not currently contained within the used local assets
-			if (!localTrackedAssets.contains(key) && !dumpExclusions.contains(key)) {
+			if (!localTrackedAssets.contains(key) && !isExcludedGraphicKey(key)) {
 				var obj = currentTrackedAssets.get(key);
 				@:privateAccess
 				if (obj != null) {
 					// remove the key from all cache maps
-					FlxG.bitmap._cache.remove(key);
-					openfl.Assets.cache.removeBitmapData(key);
+					FlxG.bitmap._cache.remove(obj.key);
+					openfl.Assets.cache.removeBitmapData(getSourceGraphicKey(key));
 					currentTrackedAssets.remove(key);
 
 					// and get rid of the object
@@ -87,8 +89,8 @@ class Paths
 		@:privateAccess
 		for (key => obj in FlxG.bitmap._cache)
 		{
-			if (obj != null && !currentTrackedAssets.exists(key) && !dumpExclusions.contains(key)) {
-				openfl.Assets.cache.removeBitmapData(key);
+			if (obj != null && !currentTrackedAssets.exists(key) && !isExcludedGraphicKey(key)) {
+				openfl.Assets.cache.removeBitmapData(getSourceGraphicKey(key));
 				FlxG.bitmap._cache.remove(key);
 				// pointer not found?
 				try {
@@ -260,36 +262,107 @@ class Paths
 
 	static var lastImageErrorFile:String = null;
 
-	public static var currentTrackedAssets:Map<String, FlxGraphic> = [];
-	static public function image(key:String, ?library:String = null, ?allowGPU:Bool = true):FlxGraphic
+	static function resolveImageArguments(?library:Dynamic = null, ?allowGPU:Bool = true):{library:Null<String>, allowGPU:Bool}
 	{
+		var resolvedLibrary:Null<String> = null;
+		var resolvedAllowGPU:Bool = allowGPU;
+
+		if (Std.isOfType(library, Bool))
+			resolvedAllowGPU = cast library;
+		else if (library != null)
+			resolvedLibrary = cast library;
+
+		return {
+			library: resolvedLibrary,
+			allowGPU: resolvedAllowGPU
+		};
+	}
+
+	static inline function shouldCacheOnGPU(allowGPU:Bool):Bool
+	{
+		return allowGPU && ClientPrefs.data != null && ClientPrefs.data.cacheOnGPU && FlxG.stage != null && FlxG.stage.context3D != null;
+	}
+
+	static inline function buildGraphicCacheKey(file:String, useGPU:Bool):String
+	{
+		return useGPU ? file + GPU_CACHE_SUFFIX : file;
+	}
+
+	public static inline function getSourceGraphicKey(key:String):String
+	{
+		return StringTools.endsWith(key, GPU_CACHE_SUFFIX) ? key.substr(0, key.length - GPU_CACHE_SUFFIX.length) : key;
+	}
+
+	static inline function isExcludedGraphicKey(key:String):Bool
+	{
+		return dumpExclusions.contains(getSourceGraphicKey(key));
+	}
+
+	static function getTrackedGraphicByKey(graphicKey:String, shouldTrack:Bool = true):FlxGraphic
+	{
+		if (!currentTrackedAssets.exists(graphicKey))
+			return null;
+
+		if (shouldTrack)
+			localTrackedAssets.push(graphicKey);
+		return currentTrackedAssets.get(graphicKey);
+	}
+
+	static inline function getCachedGraphic(file:String, allowGPU:Bool):FlxGraphic
+	{
+		return getTrackedGraphicByKey(buildGraphicCacheKey(file, shouldCacheOnGPU(allowGPU)));
+	}
+
+	static function getAnyTrackedGraphic(file:String):FlxGraphic
+	{
+		var graphic = getTrackedGraphicByKey(buildGraphicCacheKey(file, false), false);
+		if (graphic != null)
+			return graphic;
+		return getTrackedGraphicByKey(buildGraphicCacheKey(file, true), false);
+	}
+
+	static function loadBitmapDataFromSource(file:String, useCache:Bool = true):BitmapData
+	{
+		if (OpenFlAssets.exists(file, IMAGE))
+			return OpenFlAssets.getBitmapData(file, useCache);
+
+		#if sys
+		if (FileSystem.exists(file))
+			return BitmapData.fromFile(file);
+		#end
+
+		return null;
+	}
+
+	public static var currentTrackedAssets:Map<String, FlxGraphic> = [];
+	static public function image(key:String, ?library:Dynamic = null, ?allowGPU:Bool = true):FlxGraphic
+	{
+		var resolvedArgs = resolveImageArguments(library, allowGPU);
+		var resolvedLibrary = resolvedArgs.library;
+		var resolvedAllowGPU = resolvedArgs.allowGPU;
 		var bitmap:BitmapData = null;
 		var file:String = null;
 
 		#if MODS_ALLOWED
 		file = modsImages(key);
-		if (currentTrackedAssets.exists(file))
-		{
-			localTrackedAssets.push(file);
-			return currentTrackedAssets.get(file);
-		}
+		var cachedGraphic = getCachedGraphic(file, resolvedAllowGPU);
+		if (cachedGraphic != null)
+			return cachedGraphic;
 		else if (FileSystem.exists(file))
-			bitmap = BitmapData.fromFile(file);
+			bitmap = loadBitmapDataFromSource(file);
 		else
 		#end
 		{
-			file = getPath('images/$key.png', IMAGE, library);
-			if (currentTrackedAssets.exists(file))
-			{
-				localTrackedAssets.push(file);
-				return currentTrackedAssets.get(file);
-			}
+			file = getPath('images/$key.png', IMAGE, resolvedLibrary);
+			var cachedGraphic = getCachedGraphic(file, resolvedAllowGPU);
+			if (cachedGraphic != null)
+				return cachedGraphic;
 			else if (OpenFlAssets.exists(file, IMAGE))
-				bitmap = OpenFlAssets.getBitmapData(file);
+				bitmap = loadBitmapDataFromSource(file, !shouldCacheOnGPU(resolvedAllowGPU));
 		}
 
 		if (bitmap != null) {
-			return bitmapToGraphic(file, bitmap);
+			return bitmapToGraphic(file, bitmap, resolvedAllowGPU);
 		}
 
 		//STOP FUCKING USING TRACE ITS CPU HEAVY
@@ -310,11 +383,9 @@ class Paths
 		#if MODS_ALLOWED
 		file = modsImages(key, modDir);
 		// return cached
-		if (currentTrackedAssets.exists(file))
-		{
-			localTrackedAssets.push(file);
-			return Future.withValue(currentTrackedAssets.get(file).bitmap);
-		}
+		var cachedGraphic = getAnyTrackedGraphic(file);
+		if (cachedGraphic != null)
+			return Future.withValue(getGraphicBitmap(cachedGraphic));
 		// found in the mods files
 		else if (FileSystem.exists(file))
 			return BitmapData.loadFromFile(file);
@@ -323,11 +394,9 @@ class Paths
 		#end
 		{
 			file = getPath('images/$key.png', IMAGE, library);
-			if (currentTrackedAssets.exists(file))
-			{
-				localTrackedAssets.push(file);
-				return Future.withValue(currentTrackedAssets.get(file).bitmap);
-			}
+			var cachedGraphic = getAnyTrackedGraphic(file);
+			if (cachedGraphic != null)
+				return Future.withValue(getGraphicBitmap(cachedGraphic));
 			else if (OpenFlAssets.exists(file, IMAGE))
 				return OpenFlAssets.loadBitmapData(file);
 		}
@@ -340,21 +409,53 @@ class Paths
 		return null;
 	}
 
-	static public function bitmapToGraphic(file:String, bitmap:BitmapData) {
-		localTrackedAssets.push(file);
-		// if (allowGPU /*&& ClientPrefs.data.cacheOnGPU*/)
-		// {
-		// 	var texture:RectangleTexture = FlxG.stage.context3D.createRectangleTexture(bitmap.width, bitmap.height, BGRA, true);
-		// 	texture.uploadFromBitmapData(bitmap);
-		// 	bitmap.image.data = null;
-		// 	bitmap.dispose();
-		// 	bitmap.disposeImage();
-		// 	bitmap = BitmapData.fromTexture(texture);
-		// }
-		var newGraphic:FlxGraphic = FlxGraphic.fromBitmapData(bitmap, false, file);
+	public static function getGraphicBitmap(graphic:FlxGraphic):BitmapData
+	{
+		if (graphic == null)
+			return null;
+
+		var fallbackBitmap = graphic.bitmap;
+		if (fallbackBitmap != null && !StringTools.endsWith(graphic.key, GPU_CACHE_SUFFIX))
+			return fallbackBitmap;
+
+		var sourceKey = getSourceGraphicKey(graphic.key);
+		try
+		{
+			var bitmap = loadBitmapDataFromSource(sourceKey, false);
+			if (bitmap != null)
+				return bitmap;
+		}
+		catch (_:Dynamic) {}
+		return fallbackBitmap;
+	}
+
+	public static function imageBitmap(key:String, ?library:Dynamic = null):BitmapData
+	{
+		return getGraphicBitmap(image(key, library, false));
+	}
+
+	static public function bitmapToGraphic(file:String, bitmap:BitmapData, ?allowGPU:Bool = true) {
+		var useGPU = shouldCacheOnGPU(allowGPU);
+		var graphicKey = buildGraphicCacheKey(file, useGPU);
+		var cachedGraphic = getTrackedGraphicByKey(graphicKey);
+		if (cachedGraphic != null)
+			return cachedGraphic;
+
+		localTrackedAssets.push(graphicKey);
+		if (useGPU)
+		{
+			var texture:RectangleTexture = FlxG.stage.context3D.createRectangleTexture(bitmap.width, bitmap.height, Context3DTextureFormat.BGRA, true);
+			texture.uploadFromBitmapData(bitmap);
+			if (bitmap.image != null)
+				bitmap.image.data = null;
+			bitmap.dispose();
+			bitmap.disposeImage();
+			bitmap = BitmapData.fromTexture(texture);
+		}
+		var newGraphic:FlxGraphic = FlxGraphic.fromBitmapData(bitmap, false, graphicKey);
 		newGraphic.persist = true;
 		newGraphic.destroyOnNoUse = false;
-		currentTrackedAssets.set(file, newGraphic);
+		currentTrackedAssets.set(graphicKey, newGraphic);
 		return newGraphic;
 	}
 
@@ -420,27 +521,34 @@ class Paths
 	}
 
 	// less optimized but automatic handling
-	static public function getAtlas(key:String, ?library:String = null):FlxAtlasFrames
+	static public function getAtlas(key:String, ?library:Dynamic = null, ?allowGPU:Bool = true):FlxAtlasFrames
 	{
+		var resolvedArgs = resolveImageArguments(library, allowGPU);
+		var resolvedLibrary = resolvedArgs.library;
+		var resolvedAllowGPU = resolvedArgs.allowGPU;
 		#if MODS_ALLOWED
-		if(FileSystem.exists(modsXml(key)) || OpenFlAssets.exists(getPath('images/$key.xml', library), TEXT))
+		if(FileSystem.exists(modsXml(key)) || OpenFlAssets.exists(getPath('images/$key.xml', TEXT, resolvedLibrary), TEXT))
 		#else
-		if(OpenFlAssets.exists(getPath('images/$key.xml', library)))
+		if(OpenFlAssets.exists(getPath('images/$key.xml', TEXT, resolvedLibrary), TEXT))
 		#end
 		{
-			return getSparrowAtlas(key, library);
+			return getSparrowAtlas(key, resolvedLibrary, resolvedAllowGPU);
 		}
-		return getPackerAtlas(key, library);
+		return getPackerAtlas(key, resolvedLibrary, resolvedAllowGPU);
 	}
 
 	static var sparrowAtlasCache:Map<String, FlxAtlasFrames> = new Map();
-	inline static public function getSparrowAtlas(key:String, ?library:String = null, ?allowGPU:Bool = true):FlxAtlasFrames
+	inline static public function getSparrowAtlas(key:String, ?library:Dynamic = null, ?allowGPU:Bool = true):FlxAtlasFrames
 	{
-		if (sparrowAtlasCache.exists(key + library))
-			return sparrowAtlasCache.get(key + library);
+		var resolvedArgs = resolveImageArguments(library, allowGPU);
+		var resolvedLibrary = resolvedArgs.library;
+		var resolvedAllowGPU = resolvedArgs.allowGPU;
+		var atlasKey = key + ':' + (resolvedLibrary ?? 'null') + ':' + (shouldCacheOnGPU(resolvedAllowGPU) ? 'gpu' : 'cpu');
+		if (sparrowAtlasCache.exists(atlasKey))
+			return sparrowAtlasCache.get(atlasKey);
 
 		#if MODS_ALLOWED
-		var imageLoaded:FlxGraphic = image(key, allowGPU);
+		var imageLoaded:FlxGraphic = image(key, resolvedLibrary, resolvedAllowGPU);
 		var xmlExists:Bool = false;
 
 		var xml:String = modsXml(key);
@@ -448,25 +556,29 @@ class Paths
 			xmlExists = true;
 		}
 
-		var frames = FlxAtlasFrames.fromSparrow((imageLoaded != null ? imageLoaded : image(key, library, allowGPU)), (xmlExists ? File.getContent(xml) : getPath('images/$key.xml', library)));
+		var frames = FlxAtlasFrames.fromSparrow((imageLoaded != null ? imageLoaded : image(key, resolvedLibrary, resolvedAllowGPU)), (xmlExists ? File.getContent(xml) : getPath('images/$key.xml', TEXT, resolvedLibrary)));
 		#else
-		var frames = FlxAtlasFrames.fromSparrow(image(key, library, allowGPU), getPath('images/$key.xml', library));
+		var frames = FlxAtlasFrames.fromSparrow(image(key, resolvedLibrary, resolvedAllowGPU), getPath('images/$key.xml', TEXT, resolvedLibrary));
 		#end
 
 		if (frames != null)
-			sparrowAtlasCache.set(key + library, frames);
+			sparrowAtlasCache.set(atlasKey, frames);
 
 		return frames;
 	}
 
 	static var packerAtlasCache:Map<String, FlxAtlasFrames> = new Map();
-	inline static public function getPackerAtlas(key:String, ?library:String = null, ?allowGPU:Bool = true):FlxAtlasFrames
+	inline static public function getPackerAtlas(key:String, ?library:Dynamic = null, ?allowGPU:Bool = true):FlxAtlasFrames
 	{
-		if (packerAtlasCache.exists(key + library))
-			return packerAtlasCache.get(key + library);
+		var resolvedArgs = resolveImageArguments(library, allowGPU);
+		var resolvedLibrary = resolvedArgs.library;
+		var resolvedAllowGPU = resolvedArgs.allowGPU;
+		var atlasKey = key + ':' + (resolvedLibrary ?? 'null') + ':' + (shouldCacheOnGPU(resolvedAllowGPU) ? 'gpu' : 'cpu');
+		if (packerAtlasCache.exists(atlasKey))
+			return packerAtlasCache.get(atlasKey);
 
 		#if MODS_ALLOWED
-		var imageLoaded:FlxGraphic = image(key, allowGPU);
+		var imageLoaded:FlxGraphic = image(key, resolvedLibrary, resolvedAllowGPU);
 		var txtExists:Bool = false;
 		
 		var txt:String = modsTxt(key);
@@ -474,13 +586,13 @@ class Paths
 			txtExists = true;
 		}
 
-		var frames = FlxAtlasFrames.fromSpriteSheetPacker((imageLoaded != null ? imageLoaded : image(key, library, allowGPU)), (txtExists ? File.getContent(txt) : getPath('images/$key.txt', library)));
+		var frames = FlxAtlasFrames.fromSpriteSheetPacker((imageLoaded != null ? imageLoaded : image(key, resolvedLibrary, resolvedAllowGPU)), (txtExists ? File.getContent(txt) : getPath('images/$key.txt', TEXT, resolvedLibrary)));
 		#else
-		var frames = FlxAtlasFrames.fromSpriteSheetPacker(image(key, library, allowGPU), getPath('images/$key.txt', library));
+		var frames = FlxAtlasFrames.fromSpriteSheetPacker(image(key, resolvedLibrary, resolvedAllowGPU), getPath('images/$key.txt', TEXT, resolvedLibrary));
 		#end
 
 		if (frames != null)
-			packerAtlasCache.set(key + library, frames);
+			packerAtlasCache.set(atlasKey, frames);
 
 		return frames;
 	}

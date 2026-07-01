@@ -1114,7 +1114,7 @@ class FunkinLua {
 			game.addCharacterToList(name, charType);
 		});
 		Lua_helper.add_callback(lua, "precacheImage", function(name:String, ?allowGPU:Bool = true) {
-			Paths.image(name, allowGPU);
+			Paths.image(name, null, allowGPU);
 		});
 		Lua_helper.add_callback(lua, "precacheSound", function(name:String) {
 			Paths.sound(name);
@@ -1634,8 +1634,13 @@ class FunkinLua {
 				spr = LuaUtils.getVarInArray(LuaUtils.getPropertyLoop(split), split[split.length - 1]);
 			}
 
-			if (spr != null)
-				return spr.pixels.getPixel32(x, y);
+			if (spr != null) {
+				var pixels = spr.pixels;
+				if (pixels == null && spr.graphic != null)
+					pixels = Paths.getGraphicBitmap(spr.graphic);
+				if (pixels != null)
+					return pixels.getPixel32(x, y);
+			}
 			return FlxColor.BLACK;
 		});
 		Lua_helper.add_callback(lua, "startDialogue", function(dialogueFile:String, music:String = null) {

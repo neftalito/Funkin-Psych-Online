@@ -43,7 +43,7 @@ class HealthIcon extends FlxSprite
 		if(this.char != char) {
 			var name:String = findIconPath(char);
 			
-			var graphic = Paths.image(name, allowGPU);
+			var graphic = Paths.image(name, null, allowGPU);
 			if (graphic == null) {
 				if (char != 'face')
 					changeIcon('face');

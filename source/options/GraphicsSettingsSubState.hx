@@ -39,11 +39,12 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 			'bool');
 		addOption(option);
 
-		// var option:Option = new Option('GPU Caching', //Name
-		// 	"If checked, allows the GPU to be used for caching textures, decreasing RAM usage.\nDon't turn this on if any of your mods modify pixels of sprites.", //Description
-		// 	'cacheOnGPU',
-		// 	'bool');
-		// addOption(option);
+		var option:Option = new Option('GPU Caching', //Name
+			"If checked, textures may be cached on the GPU to reduce RAM usage.\nDisable this if a mod edits sprite pixels directly.", //Description
+			'cacheOnGPU',
+			'bool');
+		option.onChange = onChangeGPUCaching;
+		addOption(option);
 
 		#if !html5 //Apparently other framerates isn't correctly supported on Browser? Probably it has some V-Sync shit enabled by default, idk
 
@@ -126,6 +127,12 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 			FlxG.drawFramerate = ClientPrefs.data.framerate;
 			FlxG.updateFramerate = ClientPrefs.data.framerate;
 		}
+	}
+
+	function onChangeGPUCaching()
+	{
+		Paths.clearStoredMemory();
+		Paths.clearUnusedMemory();
 	}
 
 	override function changeSelection(change:Int = 0)

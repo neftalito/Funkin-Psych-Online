@@ -5,13 +5,12 @@ import away3d.entities.Mesh;
 import away3d.materials.TextureMaterial;
 import away3d.primitives.PlaneGeometry;
 import away3d.textfield.RectangleBitmapTexture;
+import backend.Paths;
 import flixel.FlxSprite;
 import flixel.graphics.FlxGraphic;
 import flixel.graphics.frames.FlxAtlasFrames;
 import flx3d.animators.FlxSprite3DAnimator;
-import openfl.Assets;
 import openfl.display.BitmapData;
-import sys.FileSystem;
 
 class FlxSprite3D extends ObjectContainer3D {
     public var sprite:FlxSprite;
@@ -112,14 +111,7 @@ class FlxSprite3D extends ObjectContainer3D {
 			return usedBitmaps.get(graphic.key);
 		}
 
-		var bitmap:BitmapData = null;
-		try {
-			bitmap = Assets.getBitmapData(graphic.key, false);
-		}
-		catch (exc) {}
-		if (bitmap == null && FileSystem.exists(graphic.key)) {
-			bitmap = BitmapData.fromFile(graphic.key);
-		}
+		var bitmap = Paths.getGraphicBitmap(graphic);
 		usedBitmaps.set(graphic.key, bitmap ?? sprite.pixels);
 		return bitmap;
 	}

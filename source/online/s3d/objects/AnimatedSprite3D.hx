@@ -53,8 +53,8 @@ class AnimatedSprite3D extends ObjectContainer3D {
 			tileSize = [spriteProps.frameSize[0], spriteProps.frameSize[1] ?? spriteProps.frameSize[0]]; 
 		}
 		else if (bitmap == null && spriteProps.animations != null && spriteProps.image != null) {
-			var atlas = Paths.getAtlas(spriteProps.image);
-			bitmap = atlas.parent.bitmap;
+			var atlas = Paths.getAtlas(spriteProps.image, null, false);
+			bitmap = Paths.getGraphicBitmap(atlas.parent);
 			addFlxFrames(atlas.frames);
 		}
 

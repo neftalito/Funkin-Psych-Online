@@ -15,10 +15,9 @@ class StaticSprite3D extends Mesh {
 			throw 'Bitmap not provided and is null!';
 
 		if (bitmap == null) {
-			var graphic = Paths.image(props.image /*, null, false*/);
-			if (graphic == null)
+			bitmap = Paths.imageBitmap(props.image);
+			if (bitmap == null)
 				throw props.image + ' image doesn\'t exist!';
-			bitmap = Paths.image(props.image /*, null, false*/).bitmap;
 		}
 
 		this.graphic = bitmap;
