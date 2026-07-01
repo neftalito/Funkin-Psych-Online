@@ -2,59 +2,51 @@ package options;
 
 import objects.Character;
 
-class GraphicsSettingsSubState extends BaseOptionsMenu
-{
+class GraphicsSettingsSubState extends BaseOptionsMenu {
 	var antialiasingOption:Int;
 	var boyfriend:Character = null;
 	var gpuCachingChanged:Bool = false;
 	var initialGPUCaching:Bool = false;
-	public function new()
-	{
+
+	public function new() {
 		title = 'Performance';
-		rpcTitle = 'Performance Settings Menu'; //for Discord Rich Presence
+		rpcTitle = 'Performance Settings Menu'; // for Discord Rich Presence
 		initialGPUCaching = ClientPrefs.data.cacheOnGPU;
 
 		boyfriend = new Character(840, 170, 'bf', true);
 		boyfriend.setGraphicSize(Std.int(boyfriend.width * 0.75));
 		boyfriend.updateHitbox();
 		boyfriend.dance();
-		boyfriend.animation.finishCallback = function (name:String) boyfriend.dance();
+		boyfriend.animation.finishCallback = function(name:String) boyfriend.dance();
 		boyfriend.visible = false;
 
-		//I'd suggest using "Low Quality" as an example for making your own option since it is the simplest here
-		var option:Option = new Option('Low Quality', //Name
-			'If checked, disables some background details,\ndecreases loading times and improves performance.', //Description
-			'lowQuality', //Save data variable name
-			'bool'); //Variable type
+		// I'd suggest using "Low Quality" as an example for making your own option since it is the simplest here
+		var option:Option = new Option('Low Quality', // Name
+			'If checked, disables some background details,\ndecreases loading times and improves performance.', // Description
+			'lowQuality', // Save data variable name
+			'bool'); // Variable type
 		addOption(option);
 
-		var option:Option = new Option('Anti-Aliasing',
-			'If unchecked, disables anti-aliasing, increases performance\nat the cost of sharper visuals.',
-			'antialiasing',
-			'bool');
-		option.onChange = onChangeAntiAliasing; //Changing onChange is only needed if you want to make a special interaction after it changes the value
+		var option:Option = new Option('Anti-Aliasing', 'If unchecked, disables anti-aliasing, increases performance\nat the cost of sharper visuals.',
+			'antialiasing', 'bool');
+		option.onChange = onChangeAntiAliasing; // Changing onChange is only needed if you want to make a special interaction after it changes the value
 		addOption(option);
-		antialiasingOption = optionsArray.length-1;
+		antialiasingOption = optionsArray.length - 1;
 
-		var option:Option = new Option('Shaders', //Name
-			"If unchecked, disables shaders.\nIt's used for some visual effects, and also CPU intensive for weaker PCs.", //Description
-			'shaders',
-			'bool');
+		var option:Option = new Option('Shaders', // Name
+			"If unchecked, disables shaders.\nIt's used for some visual effects, and also CPU intensive for weaker PCs.", // Description
+			'shaders', 'bool');
 		addOption(option);
 
-		var option:Option = new Option('GPU Caching', //Name
-			"If checked, textures may be cached on the GPU to reduce RAM usage.\nDisable this if a mod edits sprite pixels directly.", //Description
+		var option:Option = new Option('GPU Caching', // Name
+			"If checked, textures may be cached on the GPU to reduce RAM usage.", // Description
 			'cacheOnGPU',
 			'bool');
-		option.onChange = onChangeGPUCaching;
 		addOption(option);
 
-		#if !html5 //Apparently other framerates isn't correctly supported on Browser? Probably it has some V-Sync shit enabled by default, idk
+		#if !html5 // Apparently other framerates isn't correctly supported on Browser? Probably it has some V-Sync shit enabled by default, idk
 
-		var option:Option = new Option('Framerate',
-			"Pretty self explanatory, isn't it?",
-			'framerate',
-			'int');
+		var option:Option = new Option('Framerate', "Pretty self explanatory, isn't it?", 'framerate', 'int');
 		addOption(option);
 
 		option.minValue = 60;
@@ -62,93 +54,64 @@ class GraphicsSettingsSubState extends BaseOptionsMenu
 		option.displayFormat = '%v FPS';
 		option.onChange = onChangeFramerate;
 
-		var option:Option = new Option('Max FPS', //Name
-			"If checked, the FPS limit will be set to 1000.\nThis setting makes the input timing more accurate, but in cost of minor graphical issues.", //Description
-			'unlockFramerate',
-			'bool');
+		var option:Option = new Option('Max FPS', // Name
+			"If checked, the FPS limit will be set to 1000.\nThis setting makes the input timing more accurate, but in cost of minor graphical issues.", // Description
+			'unlockFramerate', 'bool');
 		option.onChange = onChangeFramerate;
 		addOption(option);
 		#end
 
-		var option:Option = new Option('Disable Text Item Icons', //Name
-			"If checked, menu text item icons will not be loaded, greatly decreases loading times.", //Description
-			'disableFreeplayIcons',
-			'bool');
+		var option:Option = new Option('Disable Text Item Icons', // Name
+			"If checked, menu text item icons will not be loaded, greatly decreases loading times.", // Description
+			'disableFreeplayIcons', 'bool');
 		addOption(option);
 
-		var option:Option = new Option('Disable Text Item Alphabet', //Name
-			"If checked, various menu elements will be rendered using the pixel font.", //Description
-			'disableFreeplayAlphabet',
-			'bool');
+		var option:Option = new Option('Disable Text Item Alphabet', // Name
+			"If checked, various menu elements will be rendered using the pixel font.", // Description
+			'disableFreeplayAlphabet', 'bool');
 		addOption(option);
 
 		var option:Option = new Option('Combo Stacking',
-			"If unchecked, Ratings and Combo won't stack, saving on System Memory a little and making them easier to read",
-			'comboStacking',
-			'bool');
+			"If unchecked, Ratings and Combo won't stack, saving on System Memory a little and making them easier to read", 'comboStacking', 'bool');
 		addOption(option);
 
 		var option:Option = new Option('Filter Script Functions',
-			"If checked, only create-like functions will be run for scripts, preventing more frequent code to not be run.",
-			'filterScriptFunctions',
-			'bool');
+			"If checked, only create-like functions will be run for scripts, preventing more frequent code to not be run.", 'filterScriptFunctions', 'bool');
 		addOption(option);
 
 		super();
 		insert(1, boyfriend);
 	}
 
-	function onChangeAntiAliasing()
-	{
+	function onChangeAntiAliasing() {
 		FlxSprite.defaultAntialiasing = ClientPrefs.data.antialiasing;
-		
-		for (sprite in members)
-		{
+
+		for (sprite in members) {
 			var sprite:FlxSprite = cast sprite;
-			if(sprite != null && (sprite is FlxSprite) && !(sprite is FlxText)) {
+			if (sprite != null && (sprite is FlxSprite) && !(sprite is FlxText)) {
 				sprite.antialiasing = ClientPrefs.data.antialiasing;
 			}
 		}
 	}
 
-	function onChangeFramerate()
-	{
+	function onChangeFramerate() {
 		if (ClientPrefs.data.unlockFramerate) {
 			FlxG.updateFramerate = 1000;
 			FlxG.drawFramerate = 1000;
 			return;
 		}
 
-
-		if(ClientPrefs.data.framerate > FlxG.drawFramerate)
-		{
+		if (ClientPrefs.data.framerate > FlxG.drawFramerate) {
 			FlxG.updateFramerate = ClientPrefs.data.framerate;
 			FlxG.drawFramerate = ClientPrefs.data.framerate;
 		}
-		else
-		{
+		else {
 			FlxG.drawFramerate = ClientPrefs.data.framerate;
 			FlxG.updateFramerate = ClientPrefs.data.framerate;
 		}
 	}
 
-	function onChangeGPUCaching()
-	{
-		gpuCachingChanged = true;
-		Paths.queueCacheRefresh();
-	}
-
-	override public function close()
-	{
-		if (gpuCachingChanged && ClientPrefs.data.cacheOnGPU != initialGPUCaching)
-			OptionsState.performanceStateRefreshPending = true;
-		else if (gpuCachingChanged)
-			Paths.cancelPendingCacheRefresh();
-		super.close();
-	}
-
-	override function changeSelection(change:Int = 0)
-	{
+	override function changeSelection(change:Int = 0) {
 		super.changeSelection(change);
 		boyfriend.visible = (antialiasingOption == curSelected);
 	}
