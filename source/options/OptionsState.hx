@@ -1,5 +1,6 @@
 package options;
 
+import flixel.addons.transition.FlxTransitionableState;
 import states.ModsMenuState;
 import online.states.RoomState;
 import states.MainMenuState;
@@ -179,14 +180,16 @@ class OptionsState extends MusicBeatState
 
 	var forceUpdateNext:Bool = true;
 	override function update(elapsed:Float) {
-		if (performanceStateRefreshPending)
+		super.update(elapsed);
+
+		if (performanceStateRefreshPending && subState == null)
 		{
 			performanceStateRefreshPending = false;
+			FlxTransitionableState.skipNextTransIn = true;
+			FlxTransitionableState.skipNextTransOut = true;
 			FlxG.switchState(() -> new OptionsState());
 			return;
 		}
-
-		super.update(elapsed);
 
 		if (controls.UI_UP_P) {
 			changeSelection(-1);
