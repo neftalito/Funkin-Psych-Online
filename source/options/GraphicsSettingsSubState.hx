@@ -37,7 +37,7 @@ class GraphicsSettingsSubState extends BaseOptionsMenu {
 		addOption(option);
 
 		var option:Option = new Option('GPU Caching', // Name
-			"If checked, textures may be cached on the GPU to reduce RAM usage.\nOnly affects assets loaded from now on.", // Description
+			"If checked, textures may be cached on the GPU to reduce RAM usage.\nOnly affects assets loaded from now on, and may fall back to CPU if VRAM runs out.", // Description
 			'cacheOnGPU',
 			'bool');
 		option.onChange = onChangeGPUCaching;
@@ -111,6 +111,11 @@ class GraphicsSettingsSubState extends BaseOptionsMenu {
 	}
 
 	function onChangeGPUCaching() {
+		if (ClientPrefs.data.cacheOnGPU && Paths.isGPUCachingDisabledForSession()) {
+			Alert.alert('GPU Caching', 'GPU caching was disabled for this session after a texture upload failed.\nRestart the game to try enabling it again.');
+			return;
+		}
+
 		Alert.alert('GPU Caching', 'New assets will use the selected mode. Already loaded assets will keep their current one.');
 	}
 

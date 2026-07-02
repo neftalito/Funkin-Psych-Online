@@ -21,6 +21,7 @@ import openfl.geom.Rectangle;
 
 import lime.utils.Assets;
 import openfl.media.Sound;
+import online.gui.Alert;
 
 #if sys
 import sys.io.File;
@@ -42,6 +43,8 @@ class Paths
 	inline public static var VIDEO_EXT = "mp4";
 	inline public static var PATH_SLASH = #if windows '\\' #else '/' #end;
 	inline static var GPU_CACHE_SUFFIX = '#gpu';
+	static var gpuCachingDisabledForSession:Bool = false;
+	static var gpuCachingFailureAlertShown:Bool = false;
 
 	public static function excludeAsset(key:String) {
 		if (!dumpExclusions.contains(key))
@@ -280,7 +283,25 @@ class Paths
 
 	static inline function shouldCacheOnGPU(allowGPU:Bool):Bool
 	{
-		return allowGPU && ClientPrefs.data != null && ClientPrefs.data.cacheOnGPU && FlxG.stage != null && FlxG.stage.context3D != null;
+		return allowGPU && ClientPrefs.data != null && ClientPrefs.data.cacheOnGPU && !gpuCachingDisabledForSession && FlxG.stage != null && FlxG.stage.context3D != null;
+	}
+
+	public static inline function isGPUCachingDisabledForSession():Bool
+	{
+		return gpuCachingDisabledForSession;
+	}
+
+	static function disableGPUCachingForSession(file:String, exc:Dynamic):Void
+	{
+		gpuCachingDisabledForSession = true;
+		if (!gpuCachingFailureAlertShown)
+		{
+			gpuCachingFailureAlertShown = true;
+			Alert.alert('GPU Caching Disabled', 'The GPU could not store more textures.\nNew assets will use CPU caching for the rest of this session.');
+		}
+
+		if (ClientPrefs.isDebug())
+			Sys.println('Paths.bitmapToGraphic(): falling back to CPU cache for "$file" after GPU upload failure: ' + exc);
 	}
 
 	static inline function buildGraphicCacheKey(file:String, useGPU:Bool):String
@@ -441,17 +462,40 @@ class Paths
 		if (cachedGraphic != null)
 			return cachedGraphic;
 
-		localTrackedAssets.push(graphicKey);
 		if (useGPU)
 		{
-			var texture:RectangleTexture = FlxG.stage.context3D.createRectangleTexture(bitmap.width, bitmap.height, Context3DTextureFormat.BGRA, true);
-			texture.uploadFromBitmapData(bitmap);
-			if (bitmap.image != null)
-				bitmap.image.data = null;
-			bitmap.dispose();
-			bitmap.disposeImage();
-			bitmap = BitmapData.fromTexture(texture);
+			var texture:RectangleTexture = null;
+			try
+			{
+				texture = FlxG.stage.context3D.createRectangleTexture(bitmap.width, bitmap.height, Context3DTextureFormat.BGRA, true);
+				texture.uploadFromBitmapData(bitmap);
+				var gpuBitmap = BitmapData.fromTexture(texture);
+				if (bitmap.image != null)
+					bitmap.image.data = null;
+				bitmap.dispose();
+				bitmap.disposeImage();
+				bitmap = gpuBitmap;
+			}
+			catch (exc:Dynamic)
+			{
+				if (texture != null)
+				{
+					try
+					{
+						texture.dispose();
+					}
+					catch (_:Dynamic) {}
+				}
+				disableGPUCachingForSession(file, exc);
+				useGPU = false;
+				graphicKey = buildGraphicCacheKey(file, false);
+				cachedGraphic = getTrackedGraphicByKey(graphicKey);
+				if (cachedGraphic != null)
+					return cachedGraphic;
+			}
 		}
+
+		localTrackedAssets.push(graphicKey);
 		var newGraphic:FlxGraphic = FlxGraphic.fromBitmapData(bitmap, false, graphicKey);
 		newGraphic.persist = true;
 		newGraphic.destroyOnNoUse = false;
