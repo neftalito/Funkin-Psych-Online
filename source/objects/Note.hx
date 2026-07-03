@@ -184,15 +184,38 @@ class Note extends FlxSprite
 
 	public function defaultRGB()
 	{
-		var arr:Array<FlxColor> = ClientPrefs.getRGBColor(mustPress == (GameClient.getPlayerSelf()?.bfSide ?? true) ? 0 : 1)[noteData];
-		if(PlayState.isPixelStage) arr = ClientPrefs.getRGBPixelColor(mustPress == (GameClient.getPlayerSelf()?.bfSide ?? true) ? 0 : 1)[noteData];
+		var arr:Array<FlxColor> = getNoteColors(noteData, mustPress);
 
-		if (noteData > -1 && arr.length >= 3)
+		if (noteData > -1 && arr != null && arr.length >= 3)
 		{
 			rgbShader.r = arr[0];
 			rgbShader.g = arr[1];
 			rgbShader.b = arr[2];
 		}
+	}
+
+	public static inline function getColorOwner(mustPress:Bool):Int
+	{
+		return mustPress == (GameClient.getPlayerSelf()?.bfSide ?? true) ? 0 : 1;
+	}
+
+	public static function getNoteColors(noteData:Int, mustPress:Bool):Array<FlxColor>
+	{
+		var player:Int = getColorOwner(mustPress);
+		return !PlayState.isPixelStage ? ClientPrefs.getRGBColor(player)[noteData] : ClientPrefs.getRGBPixelColor(player)[noteData];
+	}
+
+	static inline function getGlobalRGBShaderIndex(noteData:Int, mustPress:Bool):Int
+	{
+		if(!GameClient.isConnected() || PlayState.instance == null)
+			return noteData;
+
+		return noteData + (getColorOwner(mustPress) * maniaKeys);
+	}
+
+	public static function getGlobalRGBShader(noteData:Int, mustPress:Bool):RGBPalette
+	{
+		return globalRgbShaders[getGlobalRGBShaderIndex(noteData, mustPress)];
 	}
 
 	private function set_noteType(value:String):String {
@@ -376,18 +399,16 @@ class Note extends FlxSprite
 
 	public static function initializeGlobalRGBShader(noteData:Int, mustPress:Bool)
 	{
-		if(globalRgbShaders[noteData] == null)
+		var shaderIndex:Int = getGlobalRGBShaderIndex(noteData, mustPress);
+		if(globalRgbShaders[shaderIndex] == null)
 		{
 			var newRGB:RGBPalette = new RGBPalette();
-			globalRgbShaders[noteData] = newRGB;
+			globalRgbShaders[shaderIndex] = newRGB;
 
 			var arr:Array<FlxColor> = null;
 
 			try {
-				arr = (!PlayState.isPixelStage) ? 
-					ClientPrefs.getRGBColor(mustPress == (GameClient.getPlayerSelf()?.bfSide ?? true) ? 0 : 1)[noteData] : 
-					ClientPrefs.getRGBPixelColor(mustPress == (GameClient.getPlayerSelf()?.bfSide ?? true) ? 0 : 1)[noteData]
-				;
+				arr = getNoteColors(noteData, mustPress);
 			} catch (exc) {
 				trace(exc);
 			}
@@ -399,7 +420,7 @@ class Note extends FlxSprite
 				newRGB.b = arr[2];
 			}
 		}
-		return globalRgbShaders[noteData];
+		return globalRgbShaders[shaderIndex];
 	}
 
 	var _lastNoteOffX:Float = 0;

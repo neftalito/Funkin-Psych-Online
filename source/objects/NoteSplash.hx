@@ -77,7 +77,7 @@ class NoteSplash extends FlxSprite
 				if(note.noteSplashData.b != -1) note.rgbShader.b = note.noteSplashData.b;
 				tempShader = note.rgbShader.parent;
 			}
-			else tempShader = Note.globalRgbShaders[direction];
+			else tempShader = Note.getGlobalRGBShader(direction, note?.mustPress ?? PlayState.playsAsBF());
 		}
 
 		alpha = ClientPrefs.data.splashAlpha;

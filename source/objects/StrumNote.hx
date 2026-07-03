@@ -1,8 +1,6 @@
 package objects;
 
 import flixel.graphics.frames.FlxAtlasFrames;
-import online.GameClient;
-import shaders.RGBPalette;
 import shaders.RGBPalette.RGBShaderReference;
 import backend.NoteSkinData;
 
@@ -40,17 +38,13 @@ class StrumNote extends FlxSprite
 		rgbShader.enabled = false;
 		if(PlayState.SONG != null && PlayState.SONG.disableNoteRGB) useRGBShader = false;
 
-		var arr:Array<FlxColor> = ClientPrefs.getRGBColor(mustPress == (GameClient.getPlayerSelf()?.bfSide ?? true) ? 0 : 1)[leData];
-		if(PlayState.isPixelStage) arr = ClientPrefs.getRGBPixelColor(mustPress == (GameClient.getPlayerSelf()?.bfSide ?? true) ? 0 : 1)[leData];
+		var arr:Array<FlxColor> = Note.getNoteColors(leData, mustPress);
 
-		if(arr.length >= 3)
+		if(arr != null && arr.length >= 3)
 		{
-			@:bypassAccessor
-			{
-				rgbShader.r = arr[0];
-				rgbShader.g = arr[1];
-				rgbShader.b = arr[2];
-			}
+			rgbShader.r = arr[0];
+			rgbShader.g = arr[1];
+			rgbShader.b = arr[2];
 		}
 
 		noteData = leData;
