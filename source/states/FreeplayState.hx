@@ -1869,6 +1869,7 @@ class FreeplayState extends MusicBeatState
 		renderHearts.killMembers();
 
 		var foundTexts:Array<String> = [];
+		var alphaLikeText:Bool = renderSongs.members.length > 0 && renderSongs.members[0] is online.objects.AlphaLikeText;
 
 		// 50 more loops here but it's way faster than just simply updating every text
 
@@ -1879,31 +1880,30 @@ class FreeplayState extends MusicBeatState
 				continue;
 			}
 
-			foundTexts[i] = (renderSongs.members[0] is online.objects.AlphaLikeText ? ' ' : '') + meta.songName + (renderSongs.members[0] is online.objects.AlphaLikeText ? '\n ' : '');
+			foundTexts[i] = (alphaLikeText ? ' ' : '') + meta.songName + (alphaLikeText ? '\n ' : '');
 		}
 
-		var newMembs = [for (_ in renderSongs.members) null];
-		var missings = [];
+		var newMembs:Array<FlxSprite> = [for (_ in renderSongs.members) null];
+		var missings:Array<FlxSprite> = [];
 		for (obj in renderSongs.members) {
 			var txt:Scrollable = cast obj;
 			final newIndex = foundTexts.indexOf(txt.text);
 
-			if (newIndex != -1 && foundTexts[newIndex] != null)
+			if (newIndex != -1 && foundTexts[newIndex] != null) {
 				newMembs[newIndex] = obj;
+				foundTexts[newIndex] = null;
+			}
 			else
 				missings.push(obj);
-
-			foundTexts[newIndex] = null;
 		}
 
 		for (obj in missings) {
 			newMembs[newMembs.indexOf(null)] = obj;
 		}
 
-		renderSongs.clear();
-
-		for (obj in newMembs) {
-			renderSongs.add(obj);
+		// Keep the recycled render slots alive and only reorder the backing array.
+		for (i in 0...newMembs.length) {
+			renderSongs.members[i] = newMembs[i];
 		}
 
 		futureQueue = [];
@@ -1915,7 +1915,7 @@ class FreeplayState extends MusicBeatState
 			var meta = songs[obj.ID];
 
 			if (meta == null) {
-				obj.visible = false;
+				obj.visible = obj.active = false;
 				continue;
 			}
 
