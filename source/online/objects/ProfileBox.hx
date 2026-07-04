@@ -23,6 +23,7 @@ class ProfileBox extends FlxSpriteGroup {
 	
 	public var autoUpdateThings:Bool = true;
 	public var sizeAdd:Int = 0;
+	var _requestNonce:Int = 0;
 
 	public function new(leUser:String, leVerified:Bool, ?leCardHeight:Int = 100, ?sizeAdd:Int = 0) {
         super();
@@ -59,8 +60,13 @@ class ProfileBox extends FlxSpriteGroup {
 		if (destroyed)
 			return;
 
+		final requestNonce = ++_requestNonce;
+		final requestUser = leUser;
+		final requestVerified = leVerified;
+
 		user = leUser;
 		verified = leVerified;
+		isSelf = verified && user == FunkinNetwork.nickname;
 
 		//avatar.makeGraphic(0, 0, FlxColor.TRANSPARENT);
 		avatar.visible = false;
@@ -75,16 +81,24 @@ class ProfileBox extends FlxSpriteGroup {
 		#if SDEBUG trace(FlxG.state == _ste); #end
 		
 		Thread.run(() -> {
-			isSelf = verified && user == FunkinNetwork.nickname;
-
-			if (verified)
-				profileData = FunkinNetwork.fetchUserInfo(user);
-			else
-				profileData = null;
+			var fetchedProfileData:Dynamic = null;
+			try {
+				if (requestVerified)
+					fetchedProfileData = FunkinNetwork.fetchUserInfo(requestUser);
+			}
+			catch (exc) {
+				trace(exc);
+			}
 
 			#if SDEBUG trace(FlxG.state == _ste); #end
 
-			Waiter.put(creativo);
+			Waiter.put(() -> {
+				if (destroyed || requestNonce != _requestNonce || user != requestUser || verified != requestVerified)
+					return;
+
+				profileData = fetchedProfileData;
+				creativo();
+			});
 		});
 	}
 
@@ -111,11 +125,19 @@ class ProfileBox extends FlxSpriteGroup {
 					desc.text += "\nAvg. Accuracy: " + FlxMath.roundDecimal((profileData.avgAccuracy * 100), 2) + "%";
 				}
 
+				final avatarRequestNonce = _requestNonce;
+				final avatarUser = user;
 				Thread.run(() -> {
-					var avatarData = FunkinNetwork.getUserAvatar(user);
+					var avatarData = null;
+					try {
+						avatarData = FunkinNetwork.getUserAvatar(avatarUser);
+					}
+					catch (exc) {
+						trace(exc);
+					}
 
 					Waiter.put(() -> {
-						if (!destroyed) {
+						if (!destroyed && avatarRequestNonce == _requestNonce && avatarUser == user) {
 							var prevAvatar = avatar;
 
 							if (avatarData == null)
@@ -249,6 +271,7 @@ class ProfileBox extends FlxSpriteGroup {
     var destroyed:Bool = false;
     override function destroy() {
 		destroyed = true;
+		_requestNonce++;
 		#if SDEBUG
 		trace(destroyed);
 		#end

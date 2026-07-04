@@ -236,12 +236,12 @@ class FunkinNetwork {
 		if (user == null)
 			return null;
 
-		var response = requestAPI("/api/user/info?name=" + StringTools.urlEncode(user));
-
-		if (response == null)
-			return null;
-
 		try {
+			var response = requestAPI("/api/user/info?name=" + StringTools.urlEncode(user), false);
+
+			if (response == null || response.isFailed())
+				return null;
+
 			return Json.parse(response.getString());
 		}
 		catch (exc) {
@@ -252,22 +252,25 @@ class FunkinNetwork {
 
 	public static var cacheAvatar:Map<String, Bytes> = [];
 	public static function getUserAvatar(user:String):Bytes {
+		if (user == null)
+			return null;
+
 		if (cacheAvatar.exists(user)) {
 			var bytes = cacheAvatar.get(user);
 			return bytes;
 		}
 
-		var avatarResponse = FunkinNetwork.requestAPI('/api/user/avatar/' + StringTools.urlEncode(user), false);
-		if (avatarResponse.isFailed())
-			return null;
-
-		var bytes = avatarResponse?.getBytes() ?? null;
-		if (bytes == null || !ShitUtil.isSupportedImage(bytes)) {
-			cacheAvatar.set(user, null);
-			return null;
-		}
-
 		try {
+			var avatarResponse = FunkinNetwork.requestAPI('/api/user/avatar/' + StringTools.urlEncode(user), false);
+			if (avatarResponse == null || avatarResponse.isFailed())
+				return null;
+
+			var bytes = avatarResponse?.getBytes() ?? null;
+			if (bytes == null || !ShitUtil.isSupportedImage(bytes)) {
+				cacheAvatar.set(user, null);
+				return null;
+			}
+
 			cacheAvatar.set(user, bytes);
 			return bytes;
 		}
