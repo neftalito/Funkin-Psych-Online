@@ -314,6 +314,7 @@ class SoFunkinSubstate extends MusicBeatSubstate {
 			curSelected = 0;
 
 		var foundTexts:Array<String> = [];
+		var alphaLikeText:Bool = grpTexts.members.length > 0 && grpTexts.members[0] is online.objects.AlphaLikeText;
 
 		// 50 more loops here but it's way faster than just simply updating every text
 
@@ -327,35 +328,35 @@ class SoFunkinSubstate extends MusicBeatSubstate {
 				continue;
 			}
 
-			foundTexts[i] = (grpTexts.members[0] is online.objects.AlphaLikeText ? ' ' : '') + option + (grpTexts.members[0] is online.objects.AlphaLikeText ? '\n ' : '');
+			foundTexts[i] = (alphaLikeText ? ' ' : '') + option + (alphaLikeText ? '\n ' : '');
 		}
 
-		var newMembs = [for (_ in grpTexts.members) null];
-		var missings = [];
+		var newMembs:Array<FlxSprite> = [for (_ in grpTexts.members) null];
+		var missings:Array<FlxSprite> = [];
 		for (obj in grpTexts.members) {
 			var txt:Scrollable = cast obj;
 			final newIndex = foundTexts.indexOf(txt.text);
 
-			if (newIndex != -1 && foundTexts[newIndex] != null)
+			if (newIndex != -1 && foundTexts[newIndex] != null) {
 				newMembs[newIndex] = obj;
+				foundTexts[newIndex] = null;
+			}
 			else
 				missings.push(obj);
-
-			foundTexts[newIndex] = null;
 		}
 
 		for (obj in missings) {
 			newMembs[newMembs.indexOf(null)] = obj;
 		}
 
-		grpTexts.clear();
+		// Keep the recycled render slots alive and only reorder the backing array.
+		for (i in 0...newMembs.length) {
+			grpTexts.members[i] = newMembs[i];
+		}
+
 		grpIcons.clear();
 		grpIconsOverlay.killMembers();
 		futureQueue = [];
-
-		for (obj in newMembs) {
-			grpTexts.add(obj);
-		}
 
 		var item:Scrollable;
 		for (i => _item in grpTexts.members) {
@@ -364,11 +365,11 @@ class SoFunkinSubstate extends MusicBeatSubstate {
 			item.ID = searchOptions[searchIndex];
 			final option = options[item.ID];
 			if (option == null || searchIndex >= searchOptions.length || searchIndex < 0) {
-				item.visible = false;
+				item.visible = item.active = false;
 				continue;
 			}
 
-			item.visible = true;
+			item.visible = item.active = true;
 			final wantText = (item is online.objects.AlphaLikeText ? ' ' : '') + option + (item is online.objects.AlphaLikeText ? '\n ' : '');
 			if (item.text != wantText) {
 				item.text = wantText;
