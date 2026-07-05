@@ -4,6 +4,7 @@ import objects.Note;
 import objects.Note;
 import options.VisualsUISubState;
 import options.NotesSubState;
+import online.backend.schema.Player;
 import online.network.FunkinNetwork;
 import online.GameClient;
 import flixel.util.FlxSave;
@@ -511,14 +512,14 @@ class ClientPrefs {
 			return (Note.maniaKeys != 4 ? data.arrowRGBMap.get(Note.maniaKeys + 'k') : data.arrowRGB);
 
 		if (player == 0)
-			return CoolUtil.to2DArrayfrom1D(CoolUtil.asta(GameClient.getPlayerSelf().arrowColors.get(Note.maniaKeys + 'k').value), 3);
+			return getOnlineArrowColors(GameClient.getPlayerSelf(), false);
 
 		if (PlayState.instance?.opponentPlayer == null)
 			return getRGBColorDefault();
 		
 		// TODO support seperate mania from both strums
 		// var opKeys = PlayState.instance.opponentPlayer.gameplaySettings.get('mania') ?? (Note.maniaKeys + 'k');
-		return CoolUtil.to2DArrayfrom1D(CoolUtil.asta(PlayState.instance.opponentPlayer.arrowColors.get(Note.maniaKeys + 'k').value), 3);
+		return getOnlineArrowColors(PlayState.instance.opponentPlayer, false);
 	}
 
 	public static function getRGBColorDefault(?variant:String) {
@@ -533,13 +534,54 @@ class ClientPrefs {
 			return (Note.maniaKeys != 4 ? data.arrowRGBPixelMap.get(Note.maniaKeys + 'k') : data.arrowRGBPixel);
 
 		if (player == 0)
-			return CoolUtil.to2DArrayfrom1D(CoolUtil.asta(GameClient.getPlayerSelf().arrowColorsPixel.get(Note.maniaKeys + 'k').value), 3);
+			return getOnlineArrowColors(GameClient.getPlayerSelf(), true);
 
 		if (PlayState.instance?.opponentPlayer == null)
 			return getRGBColorDefault('pixel');
 
 		// var opKeys = PlayState.instance.opponentPlayer.gameplaySettings.get('mania') ?? (Note.maniaKeys + 'k');
-		return CoolUtil.to2DArrayfrom1D(CoolUtil.asta(PlayState.instance.opponentPlayer.arrowColorsPixel.get(Note.maniaKeys + 'k').value), 3);
+		return getOnlineArrowColors(PlayState.instance.opponentPlayer, true);
+	}
+
+	static function getOnlineArrowColors(player:Player, isPixel:Bool):Array<Array<FlxColor>> {
+		var fallback = getRGBColorDefault(isPixel ? 'pixel' : null);
+		if (player == null)
+			return fallback;
+
+		var colorKey = Note.maniaKeys + 'k';
+		var colorArray = isPixel ? player.arrowColorsPixel.get(colorKey) : player.arrowColors.get(colorKey);
+		if (colorArray?.value == null)
+			return fallback;
+
+		return sanitizeOnlineArrowColors(CoolUtil.asta(colorArray.value), fallback);
+	}
+
+	static function sanitizeOnlineArrowColors(raw:Array<Dynamic>, fallback:Array<Array<FlxColor>>):Array<Array<FlxColor>> {
+		var rebuilt:Array<Array<FlxColor>> = [];
+
+		for (noteIndex in 0...fallback.length) {
+			rebuilt[noteIndex] = [];
+			for (channelIndex in 0...fallback[noteIndex].length) {
+				var flatIndex = noteIndex * fallback[noteIndex].length + channelIndex;
+				var value:Dynamic = raw != null && flatIndex < raw.length ? raw[flatIndex] : null;
+				rebuilt[noteIndex][channelIndex] = sanitizeOnlineArrowColor(value, fallback[noteIndex][channelIndex]);
+			}
+		}
+
+		return rebuilt;
+	}
+
+	static inline function sanitizeOnlineArrowColor(value:Dynamic, fallback:FlxColor):FlxColor {
+		if (value == null)
+			return fallback;
+
+		if (Std.isOfType(value, Int))
+			return cast value;
+
+		if (Std.isOfType(value, Float))
+			return Std.int(cast value);
+
+		return fallback;
 	}
 
 	public static function getNoteSkin(player:Int = 0):String

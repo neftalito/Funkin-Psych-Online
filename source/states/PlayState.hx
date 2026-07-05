@@ -6575,11 +6575,70 @@ class PlayState extends MusicBeatState
 		return opponentVocals;
 	}
 
+	function refreshOnlineArrowColors() {
+		if (!GameClient.isConnected())
+			return;
+
+		for (mustPress in [false, true]) {
+			for (noteData in 0...Note.maniaKeys) {
+				var arr = Note.getNoteColors(noteData, mustPress);
+				if (arr == null || arr.length < 3)
+					continue;
+
+				var palette = Note.initializeGlobalRGBShader(noteData, mustPress);
+				palette.r = arr[0];
+				palette.g = arr[1];
+				palette.b = arr[2];
+			}
+		}
+
+		applyStrumArrowColors(opponentStrums, 0);
+		applyStrumArrowColors(playerStrums, 1);
+
+		if (notes != null) {
+			for (note in notes.members) {
+				if (note != null)
+					note.defaultRGB();
+			}
+		}
+
+		for (note in unspawnNotes) {
+			if (note != null)
+				note.defaultRGB();
+		}
+	}
+
+	function applyStrumArrowColors(group:FlxTypedGroup<StrumNote>, player:Int) {
+		if (group == null)
+			return;
+
+		var mustPress = player == 1;
+		for (strum in group.members) {
+			if (strum == null)
+				continue;
+
+			var arr = Note.getNoteColors(strum.ID, mustPress);
+			if (arr == null || arr.length < 3)
+				continue;
+
+			strum.rgbShader.r = arr[0];
+			strum.rgbShader.g = arr[1];
+			strum.rgbShader.b = arr[2];
+		}
+	}
+
 	function registerMessages() {
 		GameClient.initStateListeners(this, this.registerMessages);
 
 		if (!GameClient.isConnected())
 			return;
+
+		var currentColorKey = Note.maniaKeys + 'k';
+		var queueArrowColorRefresh = () -> {
+			Waiter.put(() -> {
+				refreshOnlineArrowColors();
+			});
+		};
 
 		for (sid => player in GameClient.room.state.players) {
 			GameClient.callbacks.listen(player, "ping", (value, prev) -> {
@@ -6613,7 +6672,20 @@ class PlayState extends MusicBeatState
 						characters.get(sid).noteHold = value;
 				});
 			});
+
+			GameClient.callbacks.onChange(player.arrowColors, queueArrowColorRefresh);
+			GameClient.callbacks.onChange(player.arrowColorsPixel, queueArrowColorRefresh);
+
+			var arrowColors = player.arrowColors.get(currentColorKey);
+			if (arrowColors?.value != null)
+				GameClient.callbacks.onChange(arrowColors.value, queueArrowColorRefresh);
+
+			var arrowColorsPixel = player.arrowColorsPixel.get(currentColorKey);
+			if (arrowColorsPixel?.value != null)
+				GameClient.callbacks.onChange(arrowColorsPixel.value, queueArrowColorRefresh);
 		}
+
+		refreshOnlineArrowColors();
 
 		GameClient.room.onMessage("custom", function(message:Array<Dynamic>) {
 			if (message.length != 2)
