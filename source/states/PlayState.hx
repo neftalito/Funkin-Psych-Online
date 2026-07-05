@@ -6576,7 +6576,7 @@ class PlayState extends MusicBeatState
 	}
 
 	function refreshOnlineArrowColors() {
-		if (!GameClient.isConnected())
+		if (!GameClient.isConnected() || instance != this || FlxG.state != this)
 			return;
 
 		for (mustPress in [false, true]) {
@@ -6595,21 +6595,23 @@ class PlayState extends MusicBeatState
 		applyStrumArrowColors(opponentStrums, 0);
 		applyStrumArrowColors(playerStrums, 1);
 
-		if (notes != null) {
+		if (notes?.members != null) {
 			for (note in notes.members) {
 				if (note != null)
 					note.defaultRGB();
 			}
 		}
 
-		for (note in unspawnNotes) {
-			if (note != null)
-				note.defaultRGB();
+		if (unspawnNotes != null) {
+			for (note in unspawnNotes) {
+				if (note != null)
+					note.defaultRGB();
+			}
 		}
 	}
 
 	function applyStrumArrowColors(group:FlxTypedGroup<StrumNote>, player:Int) {
-		if (group == null)
+		if (group?.members == null)
 			return;
 
 		var mustPress = player == 1;
@@ -6636,6 +6638,8 @@ class PlayState extends MusicBeatState
 		var currentColorKey = Note.maniaKeys + 'k';
 		var queueArrowColorRefresh = () -> {
 			Waiter.put(() -> {
+				if (instance != this || FlxG.state != this)
+					return;
 				refreshOnlineArrowColors();
 			});
 		};
